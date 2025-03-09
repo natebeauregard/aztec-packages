@@ -416,6 +416,8 @@ export class AztecNodeService implements AztecNode, Traceable {
     return this.logsSource.getContractClassLogs(filter);
   }
 
+  // TODO: make sendTx a private method (_sendTx) and have the public sendTx run in a SerialQueue to only allow one tx to be processed at a time
+
   /**
    * Method to submit a transaction to the p2p pool.
    * @param tx - The transaction to be submitted.

@@ -25,7 +25,7 @@ export interface InitialAccountData {
    */
   secret: Fr;
   /**
-   * Signing key od the account.
+   * Signing key of the account.
    */
   signingKey: GrumpkinScalar;
   /**

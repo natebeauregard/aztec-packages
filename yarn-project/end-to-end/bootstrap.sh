@@ -86,6 +86,7 @@ function test_cmds {
   echo "$prefix simple e2e_outbox"
 
   # p2p sub-tests
+  echo "$prefix simple e2e_p2p/ddos"
   echo "$prefix simple e2e_p2p/gossip_network"
   echo "$prefix simple e2e_p2p/rediscovery"
   echo "$prefix simple e2e_p2p/reqresp"

@@ -20,9 +20,9 @@ case "$type" in
     # Strip leading non alpha numerics and replace / with _ for the container name.
     name="$(echo "${TEST}" | sed 's/^[^a-zA-Z0-9]*//' | tr '/' '_')${NAME_POSTFIX:-}"
     name_arg="--name $name"
-    trap 'docker rm -f $name &>/dev/null' SIGINT SIGTERM EXIT
-    docker rm -f $name &>/dev/null || true
-    docker run --rm \
+    # trap 'docker rm -f $name &>/dev/null' SIGINT SIGTERM EXIT
+    # docker rm -f $name &>/dev/null || true
+    docker run \
       $name_arg \
       --cpus=${CPUS:-4} \
       --memory=${MEM:-8g} \
@@ -40,8 +40,8 @@ case "$type" in
   "compose")
     name="${TEST//[\/\.]/_}${NAME_POSTFIX:-}"
     name_arg="-p $name"
-    trap 'docker compose $name_arg down --timeout 0' SIGTERM SIGINT EXIT
-    docker compose $name_arg down --timeout 0 &> /dev/null
+    # trap 'docker compose $name_arg down --timeout 0' SIGTERM SIGINT EXIT
+    # docker compose $name_arg down --timeout 0 &> /dev/null
     docker compose $name_arg up --exit-code-from=end-to-end --abort-on-container-exit --force-recreate
   ;;
 esac
