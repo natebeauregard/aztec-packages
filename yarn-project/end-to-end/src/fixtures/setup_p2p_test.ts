@@ -64,7 +64,7 @@ export async function createNodes(
       i,
       prefilledPublicData,
       dataDir,
-      metricsPort,
+      i == 0 ? metricsPort : undefined,
       loggerIdStorage,
     );
     nodePromises.push(nodePromise);

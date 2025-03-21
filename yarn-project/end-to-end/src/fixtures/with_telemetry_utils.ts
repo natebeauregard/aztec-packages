@@ -23,9 +23,9 @@ export function getEndToEndTestTelemetryClient(metricsPort?: number): TelemetryC
 function getEndToEndTestTelemetryConfig(metricsPort?: number) {
   const telemetryConfig: TelemetryClientConfig = getTelemetryConfig();
   if (metricsPort) {
-    telemetryConfig.metricsCollectorUrl = new URL(`http://127.0.0.1:${metricsPort}/v1/metrics`);
-    telemetryConfig.tracesCollectorUrl = new URL(`http://127.0.0.1:${metricsPort}/v1/traces`);
-    telemetryConfig.logsCollectorUrl = new URL(`http://127.0.0.1:${metricsPort}/v1/logs`);
+    telemetryConfig.metricsCollectorUrl = new URL(`http://host.docker.internal:${metricsPort}/v1/metrics`);
+    telemetryConfig.tracesCollectorUrl = new URL(`http://host.docker.internal:${metricsPort}/v1/traces`);
+    telemetryConfig.logsCollectorUrl = new URL(`http://host.docker.internal:${metricsPort}/v1/logs`);
     // Set faster collection and export times for end-to-end tests
     telemetryConfig.otelCollectIntervalMs = 5000;
     telemetryConfig.otelExportTimeoutMs = 2500;

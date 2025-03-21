@@ -111,10 +111,14 @@ services:
     profiles:
       - metrics
     image: grafana/otel-lgtm
+    environment:
+      - ENABLE_LOGS_OTELCOL=true
+      - ENABLE_LOGS_PROMETHEUS=true
     ports:
       - 4318:4318 # otel collector http
       - 4317:4317 # otel grpc
       - 3000:3000 # grafana
+      - 9090:9090 # prometheus
 
 secrets:
   aztec-node-url:
