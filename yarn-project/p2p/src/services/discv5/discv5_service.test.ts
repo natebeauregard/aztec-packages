@@ -202,6 +202,72 @@ describe('Discv5Service', () => {
     await stopNodes(node1, node2, node3);
   });
 
+  it.only('should not use private peers for discovery', async () => {
+    const node1 = await createNode();
+    const node2 = await createNode();
+    const node3 = await createNode({ privatePeers: [node2.getEnr().encodeTxt()] }); // node3 will treat node2 as a private peer
+
+    await startNodes(node1, node2, node3);
+
+    expect(node1.getAllPeers()).toHaveLength(1);
+    expect(node2.getAllPeers()).toHaveLength(1);
+    expect(node3.getAllPeers()).toHaveLength(1);
+
+    await Promise.all([
+      waitForPeers(node1, 3), // node1 should discover both node2 and node3
+      (async () => {
+        await sleep(2000); // wait for peer discovery to be able to start
+        for (let i = 0; i < 5; i++) {
+          await node1.runRandomNodesQuery();
+          await node2.runRandomNodesQuery();
+          await node3.runRandomNodesQuery();
+          await sleep(100);
+        }
+      })(),
+    ]);
+
+    const node1Peers = await getPeers(node1);
+    expect(node1Peers).toHaveLength(3);
+    expect(node1Peers).toContain(node2.getPeerId().toString());
+    expect(node1Peers).toContain(node3.getPeerId().toString());
+
+    const node2Peers = await getPeers(node2);
+    expect(node2Peers).toHaveLength(3);
+    expect(node2Peers).toContain(node1.getPeerId().toString());
+    expect(node2Peers).toContain(node3.getPeerId().toString());
+
+    // Node3 should discover node1, but node2 should not be in its DHT because it's a private peer
+    const node3Peers = await getPeers(node3);
+    expect(node3Peers).toHaveLength(2);
+    expect(node3Peers).toContain(node1.getPeerId().toString());
+    expect(node3Peers).not.toContain(node2.getPeerId().toString());
+
+    // Create node4 that connects only to node3
+    const node3Enr = node3.getEnr().encodeTxt();
+    const node4 = await createNode({ bootstrapNodes: [node3Enr] });
+    await node4.start();
+
+    // Run discovery on node4 through node3
+    await Promise.all([
+      waitForPeers(node4, 2),
+      (async () => {
+        await sleep(2000); // wait for peer discovery to be able to start
+        for (let i = 0; i < 5; i++) {
+          await node4.runRandomNodesQuery();
+          await sleep(100);
+        }
+      })(),
+    ]);
+
+    // Node4 should discover node1 and node3, but not node2
+    const node4Peers = await getPeers(node4);
+    expect(node4Peers).toContain(node1.getPeerId().toString());
+    expect(node4Peers).toContain(node3.getPeerId().toString());
+    expect(node4Peers).not.toContain(node2.getPeerId().toString());
+
+    await stopNodes(node1, node2, node3, node4);
+  });
+
   // Test is flakey, so skipping for now.
   // TODO: Investigate: #6246
   it.skip('should persist peers without bootnode', async () => {

@@ -3,7 +3,7 @@ import { sleep } from '@aztec/foundation/sleep';
 import { type ComponentsVersions, checkCompressedComponentVersion } from '@aztec/stdlib/versioning';
 import { OtelMetricsAdapter, type TelemetryClient, getTelemetryClient } from '@aztec/telemetry-client';
 
-import { Discv5, type Discv5EventEmitter, type IDiscv5CreateOptions } from '@chainsafe/discv5';
+import { Discv5, EntryStatus, InsertResult, type Discv5EventEmitter, type ENRInput, type IDiscv5CreateOptions } from '@chainsafe/discv5';
 import { ENR, SignableENR } from '@chainsafe/enr';
 import type { PeerId } from '@libp2p/interface';
 import { type Multiaddr, multiaddr } from '@multiformats/multiaddr';
@@ -34,6 +34,8 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
 
   private bootstrapNodePeerIds: PeerId[] = [];
   public bootstrapNodeEnrs: ENR[] = [];
+
+  private privatePeerIds?: Set<string>;
 
   private startTime = 0;
 
@@ -87,6 +89,38 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
       metricsRegistry,
     });
 
+    /**
+     * Adds a known ENR of a peer participating in Discv5 to the routing table.
+     *
+     * This allows pre-populating the kademlia routing table with known addresses,
+     * so that they can be used immediately in following DHT operations involving one of these peers,
+     * without having to dial them upfront.
+     *
+     * Private peers are not added to the routing table.
+     *
+     * reference: https://github.com/ChainSafe/discv5/blob/585eece/packages/discv5/src/service/service.ts#L281
+     */
+    this.discv5.addEnr = (enr: ENRInput): void => {
+      let decodedEnr: ENR;
+      try {
+        decodedEnr = typeof enr === "string" ? ENR.decodeTxt(enr) : enr;
+        decodedEnr.encode();
+      } catch (e) {
+        this.logger.debug(`Unable to add enr: ${enr}`);
+        return;
+      }
+
+      // TODO: how to handle async call to get peerId?
+      if (this.privatePeerIds && this.privatePeerIds.has((await decodedEnr.peerId()).toString())) {
+        this.logger.debug(`Not using private peer ${decodedEnr.encodeTxt()} for discovery`);
+        return;
+      }
+
+      if (this.discv5.kbuckets.insertOrUpdate(decodedEnr, EntryStatus.Disconnected) === InsertResult.Inserted) {
+        this.discv5.emit("enrAdded", decodedEnr);
+      }
+    };
+
     // Hook onto the onEstablished method to check the peer's version from the ENR,
     // so we don't add it to our dht if it doesn't have the correct version.
     // In addition, we'll hook onto onDiscovered to to repeat the same check there,
@@ -122,6 +156,11 @@ export class DiscV5Service extends EventEmitter implements PeerDiscoveryService 
     if (this.currentState === PeerDiscoveryState.RUNNING) {
       throw new Error('DiscV5Service already started');
     }
+
+    if (this.config.privatePeers.length > 0) {
+      this.privatePeerIds = new Set(this.config.privatePeers.map(peerId => peerId.toString()));
+    }
+
     this.logger.debug('Starting DiscV5');
     await this.discv5.start();
     this.startTime = Date.now();
